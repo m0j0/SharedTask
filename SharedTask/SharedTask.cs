@@ -6,19 +6,21 @@ using System.Threading.Tasks;
 
 namespace SharedTask
 {
-    public sealed class SharedTask
+    public sealed class SharedTask<T>
     {
-        private readonly Func<CancellationToken, Task> _getTask;
+        private readonly Func<CancellationToken, Task<T>> _getTask;
         private readonly object _lock = new object();
+        private readonly Action<Task, object> _nullifyContinuation;
         
-        private Task _task;
+        private Task<T> _task;
 
-        public SharedTask(Func<CancellationToken, Task> getTask)
+        public SharedTask(Func<CancellationToken, Task<T>> getTask)
         {
             _getTask = getTask;
+            _nullifyContinuation = Nullify;
         }
 
-        public Task GetOrCreateAsync(CancellationToken cancellationToken = default)
+        public Task<T> GetOrCreateAsync(CancellationToken cancellationToken = default)
         {
             lock (_lock)
             {
@@ -26,25 +28,48 @@ namespace SharedTask
                     _task.IsCompleted)
                 {
                     _task = GetTaskInternalAsync(default);
-                    _task.ContinueWith(task =>
-                    {
-                        lock (_lock)
-                        {
-                            _task = null;
-                        }
-                    });
+                    _task.ContinueWith(_nullifyContinuation, _task, cancellationToken);
                 }
 
                 return _task;
             }
         }
 
-        private async Task GetTaskInternalAsync(CancellationToken cancellationToken)
+        internal Task<T> GetStateAsync()
+        {
+            lock (_lock)
+            {
+                return _task;
+            }
+        }
+
+        private void Nullify(Task task, object state)
+        {
+            var originalValue = (Task) state;
+            var fieldValue = _task;
+
+            if (originalValue != fieldValue)
+            {
+                return;
+            }
+
+            lock (_lock)
+            {
+                if (originalValue != _task)
+                {
+                    return;
+                }
+
+                _task = null;
+            }
+        }
+
+        private async Task<T> GetTaskInternalAsync(CancellationToken cancellationToken)
         {
             // to execute lock scope very fast
             await Task.Yield();
 
-            await _getTask(cancellationToken);
+            return await _getTask(cancellationToken);
         }
     }
 }

@@ -12,14 +12,16 @@ namespace SharedTask.Tests
         private const int Delay = 500;
         private const int SmallDelay = 50;
 
-        private SharedTask _task;
-        private int _called;
+        private SharedTask<int> _task;
+        private int _started;
+        private int _finished;
 
         [SetUp]
         public void SetUp()
         {
-            _called = 0;
-            _task = new SharedTask(GetNumberAsync);
+            _started = 0;
+            _finished = 0;
+            _task = new SharedTask<int>(GetNumberAsync);
         }
 
         [Test]
@@ -31,7 +33,10 @@ namespace SharedTask.Tests
 
             await Task.WhenAll(task1, task2);
 
-            Assert.That(_called, Is.EqualTo(1));
+            Assert.That(_started, Is.EqualTo(1));
+            Assert.That(_finished, Is.EqualTo(1));
+            Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
+            Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
         }
 
         [Test]
@@ -44,7 +49,7 @@ namespace SharedTask.Tests
 
             await Task.WhenAll(task1, task2);
 
-            Assert.That(_called, Is.EqualTo(1));
+            Assert.That(_started, Is.EqualTo(1));
         }
 
         [Test]
@@ -63,7 +68,7 @@ namespace SharedTask.Tests
             await task;
             await Task.WhenAll(tasks);
 
-            Assert.That(_called, Is.EqualTo(1));
+            Assert.That(_started, Is.EqualTo(1));
         }
 
         [Test]
@@ -83,7 +88,7 @@ namespace SharedTask.Tests
             await task;
             await Task.WhenAll(tasks);
 
-            Assert.That(_called, Is.EqualTo(1));
+            Assert.That(_started, Is.EqualTo(1));
         }
 
         [Test]
@@ -96,28 +101,28 @@ namespace SharedTask.Tests
 
             await Task.WhenAll(task1, task2);
 
-            Assert.That(_called, Is.EqualTo(2));
+            Assert.That(_started, Is.EqualTo(2));
         }
 
+        [Test]
+        [Repeat(10)]
+        public async Task TaskCachingNullifyingFieldTest()
+        {
+            Assert.That(_task.GetStateAsync(), Is.Null);
+            var task = _task.GetOrCreateAsync();
 
-        //[Test]
-        //[Repeat(10)]
-        //public async Task TaskCachingNullifyingFieldTest()
-        //{
-        //    Assert.That(_task, Is.Null);
-        //    var task = UpdateService.GetOrCreateTask(ref _task, () => GetNumberWithDelayAsync(100, 500), NullifyFieldTest);
+            Assert.That(_task.GetStateAsync(), Is.Not.Null);
 
-        //    Assert.That(_task, Is.Not.Null);
+            await Task.Delay(2 * Delay);
 
-        //    await Task.Delay(1000);
-
-        //    Assert.That(_task, Is.Null);
-        //}
+            Assert.That(_task.GetStateAsync(), Is.Null);
+        }
 
         private async Task<int> GetNumberAsync(CancellationToken cancellationToken)
         {
-            _called++;
+            _started++;
             await Task.Delay(Delay, cancellationToken);
+            _finished++;
             return ExpectedResult;
         }
     }
