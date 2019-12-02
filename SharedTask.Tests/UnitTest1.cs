@@ -113,7 +113,11 @@ namespace SharedTask.Tests
 
             Assert.That(_task.IsStateEmpty(), Is.False);
 
-            await Task.Delay(2 * Delay);
+            await Task.Delay(Delay / 2);
+
+            Assert.That(_task.IsStateEmpty(), Is.False);
+
+            await Task.Delay(Delay);
 
             Assert.That(_task.IsStateEmpty(), Is.True);
         }
