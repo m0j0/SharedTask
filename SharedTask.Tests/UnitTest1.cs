@@ -108,14 +108,14 @@ namespace SharedTask.Tests
         [Repeat(10)]
         public async Task TaskCachingNullifyingFieldTest()
         {
-            Assert.That(_task.GetStateAsync(), Is.Null);
+            Assert.That(_task.IsStateEmpty(), Is.True);
             var task = _task.GetOrCreateAsync();
 
-            Assert.That(_task.GetStateAsync(), Is.Not.Null);
+            Assert.That(_task.IsStateEmpty(), Is.False);
 
             await Task.Delay(2 * Delay);
 
-            Assert.That(_task.GetStateAsync(), Is.Null);
+            Assert.That(_task.IsStateEmpty(), Is.True);
         }
 
         private async Task<int> GetNumberAsync(CancellationToken cancellationToken)

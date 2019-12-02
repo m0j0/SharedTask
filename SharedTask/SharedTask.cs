@@ -11,8 +11,8 @@ namespace SharedTask
         private readonly Func<CancellationToken, Task<T>> _getTask;
         private readonly object _lock = new object();
         private readonly Action<Task, object> _nullifyContinuation;
-        
-        private Task<T> _task;
+
+        private volatile Task<T> _task;
 
         public SharedTask(Func<CancellationToken, Task<T>> getTask)
         {
@@ -22,6 +22,13 @@ namespace SharedTask
 
         public Task<T> GetOrCreateAsync(CancellationToken cancellationToken = default)
         {
+            var task = _task;
+            if (task != null &&
+                !task.IsCompleted)
+            {
+                return task;
+            }
+
             lock (_lock)
             {
                 if (_task == null ||
@@ -35,12 +42,9 @@ namespace SharedTask
             }
         }
 
-        internal Task<T> GetStateAsync()
+        internal bool IsStateEmpty()
         {
-            lock (_lock)
-            {
-                return _task;
-            }
+            return _task == null;
         }
 
         private void Nullify(Task task, object state)
