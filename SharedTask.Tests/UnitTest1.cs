@@ -46,7 +46,7 @@ namespace SharedTask.Tests
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
 
             await Task.Delay(1);
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
 
         [Test]
@@ -65,7 +65,7 @@ namespace SharedTask.Tests
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
 
             await Task.Delay(1);
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
 
         [Test]
@@ -93,7 +93,7 @@ namespace SharedTask.Tests
             }
 
             await Task.Delay(1);
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
 
         [Test]
@@ -122,7 +122,7 @@ namespace SharedTask.Tests
             }
 
             await Task.Delay(1);
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
 
         [Test]
@@ -141,26 +141,26 @@ namespace SharedTask.Tests
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult + 1));
 
             await Task.Delay(1);
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
 
         [Test]
         [Repeat(10)]
         public async Task NullifyingFieldTest()
         {
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
 
             var task = _task.GetOrCreateAsync();
 
-            Assert.That(_task.IsStateEmpty(), Is.False);
+            Assert.That(_task.IsRunning(), Is.False);
 
             await Task.Delay(Delay / 2);
 
-            Assert.That(_task.IsStateEmpty(), Is.False);
+            Assert.That(_task.IsRunning(), Is.False);
 
             await Task.Delay(Delay);
 
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
 
         [Test]
@@ -188,7 +188,7 @@ namespace SharedTask.Tests
             Assert.That(exception, Is.Not.Null);
 
             await Task.Delay(1);
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
         
         [Test]
@@ -221,7 +221,7 @@ namespace SharedTask.Tests
             Assert.That(exception, Is.Not.Null);
 
             await Task.Delay(1);
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
 
         [Test]
@@ -252,7 +252,7 @@ namespace SharedTask.Tests
             Assert.That(exception, Is.Null);
 
             await Task.Delay(1);
-            Assert.That(_task.IsStateEmpty(), Is.True);
+            Assert.That(_task.IsRunning(), Is.True);
         }
 
         private async Task<int> GetNumberAsync(CancellationToken cancellationToken)

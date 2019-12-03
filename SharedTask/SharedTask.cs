@@ -12,7 +12,7 @@ namespace SharedTask
         //
 
         private readonly Func<CancellationToken, Task<T>> _getTask;
-        private readonly Func<Task<T>, T> _nullifyContinuation;
+        private readonly Action<Task<T>> _nullifyContinuation;
         private readonly Action<object> _cancelCallback;
         private readonly List<CancellationToken> _cancellationTokens;
         private readonly List<CancellationTokenRegistration> _cancellationTokenRegistrations;
@@ -66,9 +66,12 @@ namespace SharedTask
             }
         }
 
-        internal bool IsStateEmpty()
+        public bool IsRunning()
         {
-            return _task == null;
+            lock (_lock)
+            {
+                return _task == null;
+            }
         }
 
         private void Cancel(object state)
@@ -86,19 +89,17 @@ namespace SharedTask
             }
         }
 
-        private T Nullify(Task<T> task)
+        private void Nullify(Task<T> task)
         {
             lock (_lock)
             {
                 if (task != _task)
                 {
-                    return task.Result;
+                    return;
                 }
 
                 Clean();
             }
-
-            return task.Result;
         }
 
         private void Clean()
