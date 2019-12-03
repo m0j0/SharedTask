@@ -7,10 +7,6 @@ namespace SharedTask
 {
     public sealed class SharedTask<T> : IDisposable
     {
-        //
-        private readonly object _lock = new object();
-        //
-
         private readonly Func<CancellationToken, Task<T>> _getTask;
         private readonly Action<Task<T>> _nullifyContinuation;
         private readonly Action<object> _cancelCallback;
@@ -35,7 +31,7 @@ namespace SharedTask
 
         public Task<T> GetOrCreateAsync(CancellationToken cancellationToken = default)
         {
-            lock (_lock)
+            lock (_nullifyContinuation)
             {
                 if (_task != null &&
                     _task.IsCompleted)
@@ -60,7 +56,7 @@ namespace SharedTask
 
         public void Dispose()
         {
-            lock (_lock)
+            lock (_nullifyContinuation)
             {
                 Clean();
             }
@@ -68,7 +64,7 @@ namespace SharedTask
 
         public bool IsRunning()
         {
-            lock (_lock)
+            lock (_nullifyContinuation)
             {
                 return _task == null;
             }
@@ -76,7 +72,7 @@ namespace SharedTask
 
         private void Cancel(object state)
         {
-            lock (_lock)
+            lock (_nullifyContinuation)
             {
                 var cancellationToken = (CancellationToken) state;
                 _cancellationTokens.Remove(cancellationToken);
@@ -91,7 +87,7 @@ namespace SharedTask
 
         private void Nullify(Task<T> task)
         {
-            lock (_lock)
+            lock (_nullifyContinuation)
             {
                 if (task != _task)
                 {
