@@ -25,6 +25,12 @@ namespace SharedTask.Tests
             _task = new SharedTask<int>(GetNumberAsync);
         }
 
+        [TearDown]
+        public void TearDown()
+        {
+            _task.Dispose();
+        }
+
         [Test]
         [Repeat(10)]
         public async Task SingleTaskTest()
@@ -38,6 +44,9 @@ namespace SharedTask.Tests
             Assert.That(_finished, Is.EqualTo(1));
             Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
+
+            await Task.Delay(1);
+            Assert.That(_task.IsStateEmpty(), Is.True);
         }
 
         [Test]
@@ -54,6 +63,9 @@ namespace SharedTask.Tests
             Assert.That(_finished, Is.EqualTo(1));
             Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
+
+            await Task.Delay(1);
+            Assert.That(_task.IsStateEmpty(), Is.True);
         }
 
         [Test]
@@ -79,6 +91,9 @@ namespace SharedTask.Tests
             {
                 Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
             }
+
+            await Task.Delay(1);
+            Assert.That(_task.IsStateEmpty(), Is.True);
         }
 
         [Test]
@@ -105,6 +120,9 @@ namespace SharedTask.Tests
             {
                 Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
             }
+
+            await Task.Delay(1);
+            Assert.That(_task.IsStateEmpty(), Is.True);
         }
 
         [Test]
@@ -121,6 +139,9 @@ namespace SharedTask.Tests
             Assert.That(_finished, Is.EqualTo(2));
             Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult + 1));
+
+            await Task.Delay(1);
+            Assert.That(_task.IsStateEmpty(), Is.True);
         }
 
         [Test]
@@ -165,8 +186,11 @@ namespace SharedTask.Tests
             Assert.That(_finished, Is.EqualTo(0));
             Assert.That(task.IsCanceled, Is.True);
             Assert.That(exception, Is.Not.Null);
-        }
 
+            await Task.Delay(1);
+            Assert.That(_task.IsStateEmpty(), Is.True);
+        }
+        
         [Test]
         [Repeat(10)]
         public async Task TwoTasksCancelTest()
@@ -195,6 +219,9 @@ namespace SharedTask.Tests
             Assert.That(task1.IsCanceled, Is.True);
             Assert.That(task2.IsCanceled, Is.True);
             Assert.That(exception, Is.Not.Null);
+
+            await Task.Delay(1);
+            Assert.That(_task.IsStateEmpty(), Is.True);
         }
 
         [Test]
@@ -223,6 +250,9 @@ namespace SharedTask.Tests
             Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
             Assert.That(exception, Is.Null);
+
+            await Task.Delay(1);
+            Assert.That(_task.IsStateEmpty(), Is.True);
         }
 
         private async Task<int> GetNumberAsync(CancellationToken cancellationToken)

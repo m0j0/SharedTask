@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,7 +12,7 @@ namespace SharedTask
         //
 
         private readonly Func<CancellationToken, Task<T>> _getTask;
-        private readonly Action<Task<T>> _nullifyContinuation;
+        private readonly Func<Task<T>, T> _nullifyContinuation;
         private readonly Action<object> _cancelCallback;
         private readonly List<CancellationToken> _cancellationTokens;
         private readonly List<CancellationTokenRegistration> _cancellationTokenRegistrations;
@@ -30,6 +29,10 @@ namespace SharedTask
             _cancellationTokenRegistrations = new List<CancellationTokenRegistration>();
         }
 
+        public SharedTask(Func<Task<T>> getTask) : this(token => getTask())
+        {
+        }
+
         public Task<T> GetOrCreateAsync(CancellationToken cancellationToken = default)
         {
             lock (_lock)
@@ -43,12 +46,11 @@ namespace SharedTask
                 if (_task == null ||
                     _task.IsCompleted)
                 {
-
                     _cancellationTokenSource = new CancellationTokenSource();
                     _task = GetTaskInternalAsync(_cancellationTokenSource.Token);
                     _task.ContinueWith(_nullifyContinuation, _cancellationTokenSource.Token);
                 }
-                
+
                 _cancellationTokens.Add(cancellationToken);
                 _cancellationTokenRegistrations.Add(cancellationToken.Register(_cancelCallback, cancellationToken));
 
@@ -62,7 +64,6 @@ namespace SharedTask
             {
                 Clean();
             }
-            
         }
 
         internal bool IsStateEmpty()
@@ -80,21 +81,24 @@ namespace SharedTask
                 if (_cancellationTokens.Count == 0)
                 {
                     _cancellationTokenSource.Cancel();
+                    Clean();
                 }
             }
         }
 
-        private void Nullify(Task task)
+        private T Nullify(Task<T> task)
         {
             lock (_lock)
             {
                 if (task != _task)
                 {
-                    return;
+                    return task.Result;
                 }
 
                 Clean();
             }
+
+            return task.Result;
         }
 
         private void Clean()
@@ -111,6 +115,7 @@ namespace SharedTask
             {
                 cancellationTokenRegistration.Dispose();
             }
+
             _cancellationTokenRegistrations.Clear();
         }
 
@@ -120,6 +125,39 @@ namespace SharedTask
             await Task.Yield();
 
             return await _getTask(cancellationToken);
+        }
+    }
+
+    public sealed class SharedTask : IDisposable
+    {
+        private readonly SharedTask<object> _sharedTask;
+
+        public SharedTask(Func<CancellationToken, Task> getTask)
+        {
+            _sharedTask = new SharedTask<object>(token =>
+            {
+                getTask(token);
+                return null;
+            });
+        }
+
+        public SharedTask(Func<Task> getTask)
+        {
+            _sharedTask = new SharedTask<object>(token =>
+            {
+                getTask();
+                return null;
+            });
+        }
+
+        public Task GetOrCreateAsync(CancellationToken cancellationToken = default)
+        {
+            return _sharedTask.GetOrCreateAsync(cancellationToken);
+        }
+
+        public void Dispose()
+        {
+            _sharedTask.Dispose();
         }
     }
 }
