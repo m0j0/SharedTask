@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace SharedTask.Tests
 {
     [TestFixture]
-    public class UpdateServiceTests
+    public class SharedTaskTests
     {
         private const int ExpectedResult = 100;
         private const int Delay = 500;
@@ -26,7 +26,7 @@ namespace SharedTask.Tests
 
         [Test]
         [Repeat(10)]
-        public async Task TaskCachingSingleTaskTest()
+        public async Task SingleTaskTest()
         {
             var task1 = _task.GetOrCreateAsync();
             var task2 = _task.GetOrCreateAsync();
@@ -41,24 +41,27 @@ namespace SharedTask.Tests
 
         [Test]
         [Repeat(10)]
-        public async Task TaskCachingSingleTaskWithDelayTest()
+        public async Task SingleTaskWithDelayTest()
         {
             var task1 = _task.GetOrCreateAsync();
             await Task.Delay(SmallDelay);
             var task2 = _task.GetOrCreateAsync();
 
             await Task.WhenAll(task1, task2);
-
+            
             Assert.That(_started, Is.EqualTo(1));
+            Assert.That(_finished, Is.EqualTo(1));
+            Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
+            Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
         }
 
         [Test]
         [Repeat(10)]
-        public async Task TaskCachingMultipleTasksTest()
+        public async Task MultipleTasksTest()
         {
             var task = _task.GetOrCreateAsync();
 
-            var tasks = new List<Task>();
+            var tasks = new List<Task<int>>();
             for (int i = 0; i < 5; i++)
             {
                 var task2 = _task.GetOrCreateAsync();
@@ -67,18 +70,24 @@ namespace SharedTask.Tests
 
             await task;
             await Task.WhenAll(tasks);
-
+            
             Assert.That(_started, Is.EqualTo(1));
+            Assert.That(_finished, Is.EqualTo(1));
+            Assert.That(task.Result, Is.EqualTo(ExpectedResult));
+            foreach (var task2 in tasks)
+            {
+                Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
+            }
         }
 
         [Test]
         [Repeat(10)]
-        public async Task TaskCachingMultipleTasksWithDelayTest()
+        public async Task MultipleTasksWithDelayTest()
         {
             var task = _task.GetOrCreateAsync();
             await Task.Delay(Delay - 2 * SmallDelay);
 
-            var tasks = new List<Task>();
+            var tasks = new List<Task<int>>();
             for (int i = 0; i < 10; i++)
             {
                 var task2 = _task.GetOrCreateAsync();
@@ -87,13 +96,19 @@ namespace SharedTask.Tests
 
             await task;
             await Task.WhenAll(tasks);
-
+               
             Assert.That(_started, Is.EqualTo(1));
+            Assert.That(_finished, Is.EqualTo(1));
+            Assert.That(task.Result, Is.EqualTo(ExpectedResult));
+            foreach (var task2 in tasks)
+            {
+                Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
+            }
         }
 
         [Test]
         [Repeat(10)]
-        public async Task TaskCachingDifferentTasksTest()
+        public async Task DifferentTasksTest()
         {
             var task1 = _task.GetOrCreateAsync();
             await Task.Delay(Delay + SmallDelay);
@@ -102,13 +117,17 @@ namespace SharedTask.Tests
             await Task.WhenAll(task1, task2);
 
             Assert.That(_started, Is.EqualTo(2));
+            Assert.That(_finished, Is.EqualTo(2));
+            Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
+            Assert.That(task2.Result, Is.EqualTo(ExpectedResult + 1));
         }
 
         [Test]
         [Repeat(10)]
-        public async Task TaskCachingNullifyingFieldTest()
+        public async Task NullifyingFieldTest()
         {
             Assert.That(_task.IsStateEmpty(), Is.True);
+
             var task = _task.GetOrCreateAsync();
 
             Assert.That(_task.IsStateEmpty(), Is.False);
@@ -127,7 +146,7 @@ namespace SharedTask.Tests
             _started++;
             await Task.Delay(Delay, cancellationToken);
             _finished++;
-            return ExpectedResult;
+            return ExpectedResult + (_finished - 1);
         }
     }
 }
