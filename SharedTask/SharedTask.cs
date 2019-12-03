@@ -66,7 +66,7 @@ namespace SharedTask
         {
             lock (_nullifyContinuation)
             {
-                return _task == null;
+                return _task != null;
             }
         }
 

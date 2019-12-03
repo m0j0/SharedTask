@@ -10,7 +10,7 @@ namespace SharedTask.Tests
     public class SharedTaskTests
     {
         private const int ExpectedResult = 100;
-        private const int Delay = 500;
+        private const int Delay = 200;
         private const int SmallDelay = 50;
 
         private SharedTask<int> _task;
@@ -32,7 +32,6 @@ namespace SharedTask.Tests
         }
 
         [Test]
-        [Repeat(10)]
         public async Task SingleTaskTest()
         {
             var task1 = _task.GetOrCreateAsync();
@@ -46,11 +45,10 @@ namespace SharedTask.Tests
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
 
             await Task.Delay(1);
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
         }
 
         [Test]
-        [Repeat(10)]
         public async Task SingleTaskWithDelayTest()
         {
             var task1 = _task.GetOrCreateAsync();
@@ -65,11 +63,10 @@ namespace SharedTask.Tests
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
 
             await Task.Delay(1);
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
         }
 
         [Test]
-        [Repeat(10)]
         public async Task MultipleTasksTest()
         {
             var task = _task.GetOrCreateAsync();
@@ -93,11 +90,10 @@ namespace SharedTask.Tests
             }
 
             await Task.Delay(1);
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
         }
 
         [Test]
-        [Repeat(10)]
         public async Task MultipleTasksWithDelayTest()
         {
             var task = _task.GetOrCreateAsync();
@@ -122,11 +118,10 @@ namespace SharedTask.Tests
             }
 
             await Task.Delay(1);
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
         }
 
         [Test]
-        [Repeat(10)]
         public async Task DifferentTasksTest()
         {
             var task1 = _task.GetOrCreateAsync();
@@ -141,30 +136,28 @@ namespace SharedTask.Tests
             Assert.That(task2.Result, Is.EqualTo(ExpectedResult + 1));
 
             await Task.Delay(1);
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
         }
 
         [Test]
-        [Repeat(10)]
         public async Task NullifyingFieldTest()
         {
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
 
             var task = _task.GetOrCreateAsync();
 
-            Assert.That(_task.IsRunning(), Is.False);
+            Assert.That(_task.IsRunning(), Is.True);
 
             await Task.Delay(Delay / 2);
 
-            Assert.That(_task.IsRunning(), Is.False);
+            Assert.That(_task.IsRunning(), Is.True);
 
             await Task.Delay(Delay);
 
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
         }
 
         [Test]
-        [Repeat(10)]
         public async Task CancelTaskTest()
         {
             Task<int> task = null;
@@ -188,11 +181,10 @@ namespace SharedTask.Tests
             Assert.That(exception, Is.Not.Null);
 
             await Task.Delay(1);
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
         }
         
         [Test]
-        [Repeat(10)]
         public async Task TwoTasksCancelTest()
         {
             Task<int> task1 = null;
@@ -221,11 +213,10 @@ namespace SharedTask.Tests
             Assert.That(exception, Is.Not.Null);
 
             await Task.Delay(1);
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
         }
 
         [Test]
-        [Repeat(10)]
         public async Task TwoTasksDoNotCancelTest()
         {
             Task<int> task1 = null;
@@ -252,7 +243,21 @@ namespace SharedTask.Tests
             Assert.That(exception, Is.Null);
 
             await Task.Delay(1);
-            Assert.That(_task.IsRunning(), Is.True);
+            Assert.That(_task.IsRunning(), Is.False);
+        }
+
+        [Test]
+        [Repeat(10)]
+        public async Task RaceTest()
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                var task = _task.GetOrCreateAsync();
+                await Task.Delay(Delay);
+            }
+
+            await Task.Delay(1);
+            Assert.That(_task.IsRunning(), Is.False);
         }
 
         private async Task<int> GetNumberAsync(CancellationToken cancellationToken)
