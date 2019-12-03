@@ -24,12 +24,12 @@ namespace SharedTask
 
         public Task<T> GetOrCreateAsync(CancellationToken cancellationToken = default)
         {
-            var task = _task;
+            /*var task = _task;
             if (task != null &&
                 !task.IsCompleted)
             {
                 return task;
-            }
+            }*/
 
             lock (_lock)
             {
@@ -43,19 +43,24 @@ namespace SharedTask
                     _task.ContinueWith(_nullifyContinuation, _task, _cancellationTokenSource.Token);
                 }
 
-                if (cancellationToken.CanBeCanceled)
+                //if (cancellationToken.CanBeCanceled)
                 {
                     _cancellationTokens.Add(cancellationToken);
-                    cancellationToken.Register(Cancel);
+                    cancellationToken.Register(Cancel, cancellationToken);
                 }
 
                 return _task;
             }
         }
 
-        private void Cancel()
+        private void Cancel(object state)
         {
-            _cancellationTokenSource.Cancel();
+            var cancellationToken = (CancellationToken) state;
+            _cancellationTokens.Remove(cancellationToken);
+            if (_cancellationTokens.Count == 0)
+            {
+                _cancellationTokenSource.Cancel();
+            }
         }
 
         internal bool IsStateEmpty()
