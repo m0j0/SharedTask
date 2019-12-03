@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,7 +49,7 @@ namespace SharedTask.Tests
             var task2 = _task.GetOrCreateAsync();
 
             await Task.WhenAll(task1, task2);
-            
+
             Assert.That(_started, Is.EqualTo(1));
             Assert.That(_finished, Is.EqualTo(1));
             Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
@@ -70,7 +71,7 @@ namespace SharedTask.Tests
 
             await task;
             await Task.WhenAll(tasks);
-            
+
             Assert.That(_started, Is.EqualTo(1));
             Assert.That(_finished, Is.EqualTo(1));
             Assert.That(task.Result, Is.EqualTo(ExpectedResult));
@@ -96,7 +97,7 @@ namespace SharedTask.Tests
 
             await task;
             await Task.WhenAll(tasks);
-               
+
             Assert.That(_started, Is.EqualTo(1));
             Assert.That(_finished, Is.EqualTo(1));
             Assert.That(task.Result, Is.EqualTo(ExpectedResult));
@@ -139,6 +140,89 @@ namespace SharedTask.Tests
             await Task.Delay(Delay);
 
             Assert.That(_task.IsStateEmpty(), Is.True);
+        }
+
+        [Test]
+        [Repeat(10)]
+        public async Task CancelTaskTest()
+        {
+            Task<int> task = null;
+            Exception exception = null;
+
+            try
+            {
+                var cancellationTokenSource = new CancellationTokenSource(Delay / 2);
+
+                task = _task.GetOrCreateAsync(cancellationTokenSource.Token);
+                await task;
+            }
+            catch (OperationCanceledException e)
+            {
+                exception = e;
+            }
+
+            Assert.That(_started, Is.EqualTo(1));
+            Assert.That(_finished, Is.EqualTo(0));
+            Assert.That(task.IsCanceled, Is.True);
+            Assert.That(exception, Is.Not.Null);
+        }
+
+        [Test]
+        [Repeat(10)]
+        public async Task TwoTasksCancelTest()
+        {
+            Task<int> task1 = null;
+            Task<int> task2 = null;
+            Exception exception = null;
+
+            try
+            {
+                var cancellationTokenSource1 = new CancellationTokenSource(Delay / 2);
+                task1 = _task.GetOrCreateAsync(cancellationTokenSource1.Token);
+
+                var cancellationTokenSource2 = new CancellationTokenSource(Delay / 2);
+                task2 = _task.GetOrCreateAsync(cancellationTokenSource2.Token);
+
+                await Task.WhenAll(task1, task2);
+            }
+            catch (OperationCanceledException e)
+            {
+                exception = e;
+            }
+
+            Assert.That(_started, Is.EqualTo(1));
+            Assert.That(_finished, Is.EqualTo(0));
+            Assert.That(task1.IsCanceled, Is.True);
+            Assert.That(task2.IsCanceled, Is.True);
+            Assert.That(exception, Is.Not.Null);
+        }
+
+        [Test]
+        [Repeat(10)]
+        public async Task TwoTasksDoNotCancelTest()
+        {
+            Task<int> task1 = null;
+            Task<int> task2 = null;
+            Exception exception = null;
+
+            try
+            {
+                var cancellationTokenSource = new CancellationTokenSource(Delay / 2);
+                task1 = _task.GetOrCreateAsync(cancellationTokenSource.Token);
+                task2 = _task.GetOrCreateAsync();
+
+                await Task.WhenAll(task1, task2);
+            }
+            catch (OperationCanceledException e)
+            {
+                exception = e;
+            }
+
+            Assert.That(_started, Is.EqualTo(1));
+            Assert.That(_finished, Is.EqualTo(1));
+            Assert.That(task1.Result, Is.EqualTo(ExpectedResult));
+            Assert.That(task2.Result, Is.EqualTo(ExpectedResult));
+            Assert.That(exception, Is.Null);
         }
 
         private async Task<int> GetNumberAsync(CancellationToken cancellationToken)

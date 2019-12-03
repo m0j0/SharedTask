@@ -6,13 +6,15 @@ using System.Threading.Tasks;
 
 namespace SharedTask
 {
-    public sealed class SharedTask<T>
+    public sealed class SharedTask<T> : IDisposable
     {
         private readonly Func<CancellationToken, Task<T>> _getTask;
         private readonly object _lock = new object();
         private readonly Action<Task, object> _nullifyContinuation;
 
         private volatile Task<T> _task;
+        private CancellationTokenSource _cancellationTokenSource;
+        private List<CancellationToken> _cancellationTokens = new List<CancellationToken>();
 
         public SharedTask(Func<CancellationToken, Task<T>> getTask)
         {
@@ -34,12 +36,26 @@ namespace SharedTask
                 if (_task == null ||
                     _task.IsCompleted)
                 {
-                    _task = GetTaskInternalAsync(default);
-                    _task.ContinueWith(_nullifyContinuation, _task, cancellationToken);
+                    _cancellationTokenSource?.Dispose();
+                    _cancellationTokenSource = new CancellationTokenSource();
+
+                    _task = GetTaskInternalAsync(_cancellationTokenSource.Token);
+                    _task.ContinueWith(_nullifyContinuation, _task, _cancellationTokenSource.Token);
+                }
+
+                if (cancellationToken.CanBeCanceled)
+                {
+                    _cancellationTokens.Add(cancellationToken);
+                    cancellationToken.Register(Cancel);
                 }
 
                 return _task;
             }
+        }
+
+        private void Cancel()
+        {
+            _cancellationTokenSource.Cancel();
         }
 
         internal bool IsStateEmpty()
@@ -74,6 +90,11 @@ namespace SharedTask
             await Task.Yield();
 
             return await _getTask(cancellationToken);
+        }
+
+        public void Dispose()
+        {
+            
         }
     }
 }
