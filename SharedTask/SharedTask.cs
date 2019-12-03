@@ -8,59 +8,61 @@ namespace SharedTask
 {
     public sealed class SharedTask<T> : IDisposable
     {
-        private readonly Func<CancellationToken, Task<T>> _getTask;
+        //
         private readonly object _lock = new object();
-        private readonly Action<Task, object> _nullifyContinuation;
+        //
 
-        private volatile Task<T> _task;
+        private readonly Func<CancellationToken, Task<T>> _getTask;
+        private readonly Action<Task<T>> _nullifyContinuation;
+        private readonly Action<object> _cancelCallback;
+        private readonly List<CancellationToken> _cancellationTokens;
+        private readonly List<CancellationTokenRegistration> _cancellationTokenRegistrations;
+
+        private Task<T> _task;
         private CancellationTokenSource _cancellationTokenSource;
-        private List<CancellationToken> _cancellationTokens = new List<CancellationToken>();
 
         public SharedTask(Func<CancellationToken, Task<T>> getTask)
         {
             _getTask = getTask;
             _nullifyContinuation = Nullify;
+            _cancelCallback = Cancel;
+            _cancellationTokens = new List<CancellationToken>();
+            _cancellationTokenRegistrations = new List<CancellationTokenRegistration>();
         }
 
         public Task<T> GetOrCreateAsync(CancellationToken cancellationToken = default)
         {
-            /*var task = _task;
-            if (task != null &&
-                !task.IsCompleted)
-            {
-                return task;
-            }*/
-
             lock (_lock)
             {
+                if (_task != null &&
+                    _task.IsCompleted)
+                {
+                    Clean();
+                }
+
                 if (_task == null ||
                     _task.IsCompleted)
                 {
-                    _cancellationTokenSource?.Dispose();
+
                     _cancellationTokenSource = new CancellationTokenSource();
-
                     _task = GetTaskInternalAsync(_cancellationTokenSource.Token);
-                    _task.ContinueWith(_nullifyContinuation, _task, _cancellationTokenSource.Token);
+                    _task.ContinueWith(_nullifyContinuation, _cancellationTokenSource.Token);
                 }
-
-                //if (cancellationToken.CanBeCanceled)
-                {
-                    _cancellationTokens.Add(cancellationToken);
-                    cancellationToken.Register(Cancel, cancellationToken);
-                }
+                
+                _cancellationTokens.Add(cancellationToken);
+                _cancellationTokenRegistrations.Add(cancellationToken.Register(_cancelCallback, cancellationToken));
 
                 return _task;
             }
         }
 
-        private void Cancel(object state)
+        public void Dispose()
         {
-            var cancellationToken = (CancellationToken) state;
-            _cancellationTokens.Remove(cancellationToken);
-            if (_cancellationTokens.Count == 0)
+            lock (_lock)
             {
-                _cancellationTokenSource.Cancel();
+                Clean();
             }
+            
         }
 
         internal bool IsStateEmpty()
@@ -68,25 +70,48 @@ namespace SharedTask
             return _task == null;
         }
 
-        private void Nullify(Task task, object state)
+        private void Cancel(object state)
         {
-            var originalValue = (Task) state;
-            var fieldValue = _task;
-
-            if (originalValue != fieldValue)
-            {
-                return;
-            }
-
             lock (_lock)
             {
-                if (originalValue != _task)
+                var cancellationToken = (CancellationToken) state;
+                _cancellationTokens.Remove(cancellationToken);
+
+                if (_cancellationTokens.Count == 0)
+                {
+                    _cancellationTokenSource.Cancel();
+                }
+            }
+        }
+
+        private void Nullify(Task task)
+        {
+            lock (_lock)
+            {
+                if (task != _task)
                 {
                     return;
                 }
 
-                _task = null;
+                Clean();
             }
+        }
+
+        private void Clean()
+        {
+            _task?.Dispose();
+            _task = null;
+
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+
+            _cancellationTokens.Clear();
+
+            foreach (var cancellationTokenRegistration in _cancellationTokenRegistrations)
+            {
+                cancellationTokenRegistration.Dispose();
+            }
+            _cancellationTokenRegistrations.Clear();
         }
 
         private async Task<T> GetTaskInternalAsync(CancellationToken cancellationToken)
@@ -95,11 +120,6 @@ namespace SharedTask
             await Task.Yield();
 
             return await _getTask(cancellationToken);
-        }
-
-        public void Dispose()
-        {
-            
         }
     }
 }
