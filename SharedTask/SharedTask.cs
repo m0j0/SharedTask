@@ -127,23 +127,25 @@ namespace SharedTask
 
     public sealed class SharedTask : IDisposable
     {
+        private static readonly object EmptyObject = new object();
+
         private readonly SharedTask<object> _sharedTask;
 
         public SharedTask(Func<CancellationToken, Task> getTask)
         {
-            _sharedTask = new SharedTask<object>(token =>
+            _sharedTask = new SharedTask<object>(async token =>
             {
-                getTask(token);
-                return null;
+                await getTask(token);
+                return EmptyObject;
             });
         }
 
         public SharedTask(Func<Task> getTask)
         {
-            _sharedTask = new SharedTask<object>(token =>
+            _sharedTask = new SharedTask<object>(async token =>
             {
-                getTask();
-                return null;
+                await getTask();
+                return EmptyObject;
             });
         }
 

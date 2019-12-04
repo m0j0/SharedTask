@@ -6,6 +6,8 @@ using NUnit.Framework;
 
 namespace SharedTask.Tests
 {
+    // TODO test exceptions
+
     [TestFixture]
     public class SharedTaskTests
     {

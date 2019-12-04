@@ -7,6 +7,11 @@ namespace SharedTask
 {
     public sealed class SharedQueuedTask<T> : IDisposable
     {
+        private readonly object _lock = new object();
+
+        private Task<T> _currentTask;
+        private SharedTask<T> _nextTask;
+
         public SharedQueuedTask(Func<CancellationToken, Task<T>> getTask)
         {
         }
@@ -27,8 +32,15 @@ namespace SharedTask
 
     public sealed class SharedQueuedTask : IDisposable
     {
+        private readonly SharedQueuedTask<object> _sharedQueuedTask;
+
         public SharedQueuedTask(Func<CancellationToken, Task> getTask)
         {
+            _sharedQueuedTask = new SharedQueuedTask<object>(token =>
+            {
+                 getTask(token);
+                 return null;
+            });
         }
 
         public SharedQueuedTask(Func<Task> getTask)
